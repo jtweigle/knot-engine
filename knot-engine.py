@@ -1,22 +1,20 @@
 """--------------------------------------------------+
-| This program writes a Wavefront .OBJ file for a    |
-| 3D Lissajous knot.                                 |
+| This program writes a Wavefront .OBJ file for a 3D |
+| Lissajous knot, which you can read about here:     |
 |                                                    |
 | https://en.wikipedia.org/wiki/Lissajous_knot       |
 |                                                    |
 | For a minimal example, just run:                   |
 |    $ python3 ./knot-engine.py                      |
-|                                                    |
 +--------------------------------------------------"""
 
 import argparse # reason: parsing arguments
 import sys      # reason: writing files, exiting
 import math     # reason: trig functions
 
-"""--------------------------------------------+
-|      PARAMETERS FROM THE COMMAND LINE        |
-| (what follows will have huge line widths...) |
-+--------------------------------------------"""
+"""--------------------------------------------------+
+|=|=|=|    PARAMETERS FROM THE COMMAND LINE    |=|=|=|
++--------------------------------------------------"""
 parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--output", default="knot.obj", help="specify the filename")
 parser.add_argument("-a", "--a", type=int, default=3, help="inner coefficient for x (default 3)")
@@ -30,9 +28,9 @@ parser.add_argument("-ys", "--y-scale", type=float, default=100.0, help="scale i
 parser.add_argument("-zs", "--z-scale", type=float, default=100.0, help="scale in the z direction (default 100)")
 args = parser.parse_args()
 
-"""---------------------------+
-| ADDITIONAL GLOBAL VARIABLES |
-+---------------------------"""
+"""--------------------------------------------------+
+|=|=|=|      ADDITIONAL GLOBAL VARIABLES       |=|=|=|
++--------------------------------------------------"""
 # I decided to move the phases here, since some phase inputs yielded
 # really horrible results with my wrap function.
 args.y_phase = 1
@@ -61,6 +59,10 @@ def main():
     file_object.write("# Vertices:\n")
     draw_lissajous_curve(file_object)
     file_object.close()
+
+"""--------------------------------------------------+
+|=|=|=|            DRAWING THE CURVE           |=|=|=|
++--------------------------------------------------"""
 
 """--------------------------------------------+
 | draw_lissajous_curve                         |
@@ -103,18 +105,21 @@ def draw_lissajous_curve(file_object):
 
     write_faces(file_object)
 
-"""------------------------------------------------------+
-| get_lissajous_vertex_with_frame                        |
-+--------------------------------------------------------+ 
-| The frame in question is Tangent, Normal, Binormal:    |
-| three orthonormal vectors from the curve at point t,   |
-| which we can put together to make the rotation matrix  |
-| that will orient each circle properly.                 | 
-|                                                        |
-| The function returns a tuple of the form               |
-|   (vertex, tangent, normal, binormal)                  |
-| where each entry is a 3D vector.                       |
-+------------------------------------------------------"""
+"""--------------------------------------------+
+| get_lissajous_vertex_with_frame              |
++----------------------------------------------+ 
+| The frame in question is TNB:                | 
+|  ---> Tangent, Normal, Binormal <---         |
+|                                              |
+| These are three orthonormal vectors that     |
+| track the curve at point t, so they form a   |
+| nice orthonormal basis we can use to orient  |
+| the circle properly.                         | 
+|                                              |
+| The function returns a tuple of the form     |
+|   (vertex, tangent, normal, binormal)        |
+| where each entry is a 3D vector.             |
++--------------------------------------------"""
 def get_lissajous_vertex_with_frame(t):
     global args
     a = args.a
@@ -155,13 +160,16 @@ def get_lissajous_vertex_with_frame(t):
     binormal = normalize(cross_product(tangent, normal))
     return (vertex, tangent, normal, binormal)
 
-"""-----------------------------------------------+
-| get_normal                                      |
-+-------------------------------------------------+
-| Implements the giant, hairy function, explained |
-| below, to return the normal vector at the given |
-| point t along the Lissajous curve.              |
-+-----------------------------------------------"""
+"""--------------------------------------------+
+| get_normal                                   |
++----------------------------------------------+
+| Implements the giant, hairy function,        |
+| explained below, to return the normal vector |
+| at the given point t along the curve.        |
+|                                              |
+| This vector starts at the origin; it's THAT  |
+| kind of vector.                              |
++--------------------------------------------"""
 def get_normal(t, x_inside, y_inside, z_inside,
                pre_normalized_tangent):
     global args
@@ -178,16 +186,14 @@ def get_normal(t, x_inside, y_inside, z_inside,
     z_phase = args.z_phase
 
     """
-    All right, this is going to look obscenely complicated,
-    and that's because I DON'T KNOW VECTOR CALCULUS, haha.
-
-    I got my results from this friendly
+    I got the strategy here from this friendly
     youtube tutorial on the Frenet-Serret frame:
     https://www.youtube.com/watch?v=S3-m1cRt80k
 
     What we're doing here is taking the derivative
-    of the NORMALIZED tangent vector---which means we can't
-    simply take the second derivative of the lissajous function.
+    of the NORMALIZED tangent vector---which means 
+    we can't simply take the second derivative of the 
+    functions for each component of the curve.
     """
 
     # First we get the *NORM* of the *UN-NORMALIZED* tangent:
@@ -235,111 +241,32 @@ def get_normal(t, x_inside, y_inside, z_inside,
     
     return normalize((final_x_term, final_y_term, final_z_term))
 
-"""------------------------------------------------------+
-| cross-product                                          |
-+--------------------------------------------------------+
-| Returns the cross product of the two given 3d vectors, |
-| as a float.                                            |
-+------------------------------------------------------"""
-def cross_product(v0, v1):
-    s_0 = v0[1] * v1[2] - v0[2] * v1[1]
-    s_1 = v0[2] * v1[0] - v0[0] * v1[2]
-    s_2 = v0[0] * v1[1] - v0[1] * v1[0]
-    return (s_0, s_1, s_2)
-
-"""------------------------------------------------------+
-| get_norm                                               |
-+--------------------------------------------------------+
-| Returns the norm of the given vector, as a float.      |
-|                                                        |
-| I pulled this out because it comes in handy when we're |
-| computing the Frenet-Serret frame.                     |
-+------------------------------------------------------"""
-def get_norm(vector):
-    norm_squared = sum([(vector[i] ** 2) for i in range(3)])
-    norm = math.sqrt(norm_squared)
-    return norm
-
-"""------------------------------------------------------+
-| normalize                                              |
-+--------------------------------------------------------+
-| Returns the normalized version of the given 3d vector. |
-|                                                        |
-| Technically returns it as a list of length 3,          |
-| instead of a tuple, but in Python the difference       | 
-| isn't very important.                                  |
-|                                                        |
-| If you'd like to sneer at me, do so now.               |
-+------------------------------------------------------"""
-def normalize(vector):
-    norm = get_norm(vector)
-    new_vector = [vector[i] / norm for i in range(3)]
-    return new_vector
-
-"""------------------------------------------------------+
-| rotate_vertex                                          |
-+--------------------------------------------------------+
-| rotates the given vertex (vector, ugh! I'm using these |
-| interchangeably...) by the matrix given by the basis   |
-| (tangent, normal, binormal).                           |
-+------------------------------------------------------"""
-def rotate_vertex(vertex, tangent, normal, binormal):
+"""--------------------------------------------+
+| rotate_vector                                |
++----------------------------------------------+
+| Rotates the given vector by the matrix given |
+| by the basis (tangent, normal, binormal).    |
++--------------------------------------------"""
+def rotate_vector(vertex, tangent, normal, binormal):
     matrix = transpose_3d_square_matrix([tangent, normal, binormal])
     return matrix_vector_product_3d(matrix, vertex)
 
-def transpose_3d_square_matrix(matrix):
-    row_0 = [matrix[i][0] for i in range(3)]
-    row_1 = [matrix[i][1] for i in range(3)]
-    row_2 = [matrix[i][2] for i in range(3)]
-    return [row_0, row_1, row_2]
-
-"""-------------------------------------------------+
-| matrix_vector_product_3d                          |
-+---------------------------------------------------+
-| In the general case, maybe it would be better to  |
-| use numpy matrices with the built-in function.    |
-|                                                   | 
-| On the other hand, it was fun to write these      |
-| linear algebra operations from scratch.           |
-|                                                   |
-| Plus, the constraints on the input parameters     |
-| mean we'll never encounter a use case where       |
-| we're doing an exponential number of these guys,  |
-| so time complexity isn't life-or-death.           | 
-|                                                   |
-| Returns the matrix-vector product as a tuple.     |
-+-------------------------------------------------"""
-def matrix_vector_product_3d(matrix, vector):
-    p0 = sum([(matrix[0])[i] * vector[i] for i in range(3)])
-    p1 = sum([(matrix[1])[i] * vector[i] for i in range(3)])
-    p2 = sum([(matrix[2])[i] * vector[i] for i in range(3)])
-    return (p0, p1, p2)
-
-"""------------------------------------------------+
-| translate_vertex                                 |
-+--------------------------------------------------+
-| Moves the given vertex by the given coordinates, |
-| returning the new vertex as a tuple.             |
-+------------------------------------------------"""
-def translate_vertex(vertex, coordinates):
-    return (vertex[0] + coordinates[0],
-            vertex[1] + coordinates[1],
-            vertex[2] + coordinates[2])
-
-"""-----------------------------------------------+
-| wrap_segment                                    |
-+-------------------------------------------------+
-| This function makes a tube between the PREVIOUS |
-| CIRCLE, and a circle around the NEXT VERTEX.    |
-| Note that it creates the new circle, and NOT    |
-| the previous circle.                            |
-|                                                 |
-| In the course of doing this, updates Faces      |
-| and writes the vertices to file_object.         |
-|                                                 |
-| Returns the next circle, as a list of           |
-| vertex keys, which are integers.                |
-+-----------------------------------------------"""
+"""--------------------------------------------+
+| wrap_segment                                 |
++----------------------------------------------+
+| This function makes a tube between the       |
+| PREVIOUS CIRCLE, and a circle around the     | 
+| NEXT VERTEX.                                 |
+|                                              |
+| Note that it creates the new circle, but is  |
+| GIVEN the previous circle.                   |
+|                                              |
+| In the course of doing this, updates Faces   |
+| and writes the vertices to file_object.      |
+|                                              |
+| Returns the next circle, as a list of vertex | 
+| keys, which are integers.                    |
++--------------------------------------------"""
 def wrap_segment(file_object,
                  previous_circle,
                  current_vertex,
@@ -359,35 +286,36 @@ def wrap_segment(file_object,
     make_cyclic_ribbon(pairs_of_vertices) 
     return new_circle
 
-"""-----------------------------------------------+
-| make_new_circle                                 |
-+-------------------------------------------------+
-| This function                                   |
-| current_vertex is assumed to be in the form     |
-| (center_vertex, tangent, normal, binormal),     |
-| as computed in get_lissajous_vertex_with_frame. |
-|                                                 |
-| You should know that the frame in question is   |
-| a Frenet-Serret frame: basically, imagine an    |
-| orthonormal basis moving on a roller coaster    |
-| around the curve.                               |
-|                                                 |
-| The tangent, normal, and binormal become        |
-| our little unit vectors, and that allows us     |
-| to just put them together into the rotation     |
-| matrix that moves the circle to the proper      |
-| orientation at that moment on the curve.        |
-| That's the advantage of this approach over      |
-| computing the angle and trying to get the       |
-| right orientation through three rotation        |
-| matrices.                                       |
-|                                                 |
-| Note that this calling this function writes     |
-| to file_object and updates new_vertex.          |
-|                                                 |
-| Returns the list of vertex keys                 |
-| in the new circle.                              |
-+-----------------------------------------------"""
+"""---------------------------------------------+
+| make_new_circle                               |
++-----------------------------------------------+
+| Generates a rotated circle around the current |
+| vertex, writing them to file_object and       | 
+| updating new_vertex.                          |
+|                                               |
+| Returns the list of vertex keys for the new   |
+| circle.                                       |
+|                                               |
+| Assumes that current_vertex is in the form    |
+| (center_vertex, tangent, normal, binormal),   |
+| as computed in                                | 
+| get_lissajous_vertex_with_frame.              |
+|                                               |
+| You should know that the frame in question is |
+| a Frenet-Serret frame: basically, imagine an  |
+| orthonormal basis moving on a roller coaster  |
+| around the curve.                             |
+|                                               |
+| The tangent, normal, and binormal become      |
+| our little unit vectors, and that allows us   |
+| to just put them together into the rotation   |
+| matrix that moves the circle to the proper    |
+| orientation at that moment on the curve.      |
+| That's the advantage of this approach over    |
+| computing the angle and trying to get the     |
+| right orientation through three rotation      |
+| matrices.                                     |
++---------------------------------------------"""
 def make_new_circle(file_object, current_vertex,
                     wrap_radius, wrap_density):
     wrap_radius  = max(wrap_radius, 1.0)
@@ -412,7 +340,7 @@ def make_new_circle(file_object, current_vertex,
 
         unrotated_vertex = (x_circle, y_circle, z_circle)
 
-        rotated_vertex = rotate_vertex(unrotated_vertex,
+        rotated_vertex = rotate_vector(unrotated_vertex,
                                        tangent,
                                        normal,
                                        binormal)
@@ -425,17 +353,21 @@ def make_new_circle(file_object, current_vertex,
 
     return vertex_key_list
 
-"""---------------------------------------------+
-| make_cyclic_ribbon                            |
-+-----------------------------------------------+
-| This updates Faces with what I'm calling a    |
-| cyclic ribbon, meaning a tube that connects   |
-| the given vertices.                           |
-|                                               |
-| The input is assumed to be a list of pairs    |
-| of vertices (v1, v2), where v1 is next to v2. |
-+---------------------------------------- ----"""
+"""--------------------------------------------+
+| make_cyclic_ribbon                           |
++----------------------------------------------+
+| This updates Faces with what I'm calling a   |
+| cyclic ribbon, meaning a tube that connects  |
+| the given vertices.                          |
+|                                              |
+| The input is assumed to be a list of pairs   |
+| of vertices (v1, v2) where v1 is next to v2. |
++--------------------------------------------"""
 def make_cyclic_ribbon(pairs_of_vertices):
+    # makes a cyclic rotation of the elements
+    def rotate_list(given_list, n):
+        return given_list[n:] + given_list[:n]
+
     rotated_once = rotate_list(pairs_of_vertices,1)
     pairs_of_pairs = list(zip(pairs_of_vertices, rotated_once))
     # This order was worked out by trial-and-error:
@@ -444,13 +376,13 @@ def make_cyclic_ribbon(pairs_of_vertices):
     for ((v00, v01), (v10, v11)) in pairs_of_pairs:
         Faces.append([v00, v10, v11, v01])
    
-"""----------------------------------------------+
-| write_new_vertex                               |
-+------------------------------------------------+
-| This writes the given vector to file_object as |
-| a new vertex and returns the vertex key, which |
-| is taken from the global variable new_vertex.  |
-+----------------------------------------------"""
+"""--------------------------------------------+
+| write_new_vertex                             |
++----------------------------------------------+
+| This writes the given vector to file_object  |
+| as a new vertex and returns the vertex key,  |
+| which is taken from new_vertex.              |
++--------------------------------------------"""
 def write_new_vertex(file_object, vector):
     global new_vertex
 
@@ -469,12 +401,12 @@ def write_new_vertex(file_object, vector):
 
     return current_vertex
 
-"""-----------------------------------------------------+
-| write_faces                                           |
-+-------------------------------------------------------+
-| The list of faces is stored in the global list Faces. |
-| This writes them to file_object.                      |
-+-----------------------------------------------------"""
+"""--------------------------------------------+
+| write_faces                                  |
++----------------------------------------------+
+| The list of faces is stored in the global    |
+| list Faces. This writes them to file_object. |
++--------------------------------------------"""
 def write_faces(file_object):        
     file_object.write("# Faces\n");
     for f in Faces:
@@ -483,15 +415,88 @@ def write_faces(file_object):
             file_object.write(f" {v}")
         file_object.write("\n") 
 
-"""------------------------------------------------------+
-| rotate_list                                            |
-+--------------------------------------------------------+
-| Not a rotation in the sense of a rotation matrix!      |
-| For example, rotate_list([1,2,3,4], 2) is [3,4,1,2].   |
-+------------------------------------------------------"""
-def rotate_list(given_list, n):
-    return given_list[n:] + given_list[:n]
+"""--------------------------------------------------+
+|=|=|=|       LINEAR ALGEBRA UTILITIES         |=|=|=|
++--------------------------------------------------"""
+
+"""--------------------------------------------+
+| cross-product                                |
++----------------------------------------------+
+| Returns the cross product of the two given   |
+| 3D vectors,  as a float.                     |
++--------------------------------------------"""
+def cross_product(v0, v1):
+    s_0 = v0[1] * v1[2] - v0[2] * v1[1]
+    s_1 = v0[2] * v1[0] - v0[0] * v1[2]
+    s_2 = v0[0] * v1[1] - v0[1] * v1[0]
+    return (s_0, s_1, s_2)
+
+"""--------------------------------------------+
+| get_norm                                     |
++----------------------------------------------+
+| Returns the norm of the given vector, as a   |
+| float.                                       |
+|                                              |
+| I separated this from normalize because it   |
+| comes in handy when we're computing the TNB  |
+| (Frenet-Serret) frame.                       |
++--------------------------------------------"""
+def get_norm(vector):
+    norm_squared = sum([(vector[i] ** 2) for i in range(3)])
+    norm = math.sqrt(norm_squared)
+    return norm
+
+"""--------------------------------------------+
+| normalize                                    |
++----------------------------------------------+
+| Returns the normalized version of the given  |
+| 3D vector.                                   |
++--------------------------------------------"""
+def normalize(vector):
+    norm = get_norm(vector)
+    new_vector = tuple([vector[i] / norm for i in range(3)])
+    return new_vector
+
+"""--------------------------------------------+
+| transpose_3d_square_matrix                   |
++----------------------------------------------+
+| Swaps rows for columns and columns for rows. |
++--------------------------------------------"""
+def transpose_3d_square_matrix(matrix):
+    row_0 = [matrix[i][0] for i in range(3)]
+    row_1 = [matrix[i][1] for i in range(3)]
+    row_2 = [matrix[i][2] for i in range(3)]
+    return [row_0, row_1, row_2]
+
+"""--------------------------------------------+
+| matrix_vector_product_3d                     |
++----------------------------------------------+
+| In the general case, it would probably be    |
+| good to use numpy matrices with the built-in |
+| function for matrix multiplication.          |
+|                                              |
+| My rejoinder is that it was fun to write     |
+| these functions from scratch. Plus, time     |
+| complexity is not life-or-death here.        |
+|                                              |
+| Returns the product as a tuple.              |
++--------------------------------------------"""
+def matrix_vector_product_3d(matrix, vector):
+    p0 = sum([(matrix[0])[i] * vector[i] for i in range(3)])
+    p1 = sum([(matrix[1])[i] * vector[i] for i in range(3)])
+    p2 = sum([(matrix[2])[i] * vector[i] for i in range(3)])
+    return (p0, p1, p2)
+
+"""--------------------------------------------+
+| translate_vertex                             |
++----------------------------------------------+
+| Translates vertex by coordinates, returning  |
+| the result as a tuple.                       |
++--------------------------------------------"""
+def translate_vertex(vertex, coordinates):
+    return (vertex[0] + coordinates[0],
+            vertex[1] + coordinates[1],
+            vertex[2] + coordinates[2])
  
-# Oh yeah, one more thing:
 if __name__ == "__main__":
     main()
