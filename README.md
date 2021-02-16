@@ -14,7 +14,7 @@ This one is done with `--curve-density 30`:
 ![janky-curve](screenshots/knot-curve-density-30.png)
 
 The parametric formulae that specify the curve contain three coefficients, given in
-`-a`, `-b`, and `c`. This curve was generated with ``-a 1 -b 2 -c 3``:
+`-a`, `-b`, and `-c`. This curve was generated with ``-a 1 -b 2 -c 3``:
 
 ![curve-1-2-3](screenshots/knot-1-2-3.png)
 
